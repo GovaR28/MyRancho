@@ -2,14 +2,31 @@
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { computed, nextTick, ref } from 'vue';
+import ListToolbar from '../../Components/ListToolbar.vue';
+import { useListFilters } from '../../Composables/useListFilters';
 
 const props = defineProps({
     vaccinations: { type: Object, required: true },
     vaccineClasses: { type: Array, default: () => [] },
     vaccineSuggestions: { type: Array, default: () => [] },
+    filterOptions: { type: Object, default: () => ({ clase: [], alcance: [] }) },
 });
 
 const page = usePage();
+
+const { search: listSearch, filters, updateSearch, applyFilters, clearFilters } = useListFilters('/vacunaciones', [
+    'clase',
+    'alcance',
+    'desde',
+    'hasta',
+]);
+
+const listFilters = computed(() => [
+    { key: 'clase', label: 'Clase de vacuna', options: props.filterOptions.clase },
+    { key: 'alcance', label: 'Alcance', options: props.filterOptions.alcance },
+    { key: 'desde', label: 'Desde', type: 'date' },
+    { key: 'hasta', label: 'Hasta', type: 'date' },
+]);
 
 const SCOPES = [
     { value: 'todo', label: 'Todo el ganado' },
@@ -249,6 +266,16 @@ function submitAction() {
             </div>
             <div v-if="page.props.flash?.success" class="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ page.props.flash.success }}</div>
 
+            <ListToolbar
+                :model-value="listSearch"
+                placeholder="Buscar por vacuna, clase, vacunador o lote"
+                :filters="listFilters"
+                :active-filters="filters"
+                @update:model-value="updateSearch"
+                @apply="applyFilters"
+                @clear="clearFilters"
+            />
+
             <div v-if="vaccinations.data.length" class="mt-6 overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
                 <table class="w-full min-w-[1000px] text-left text-sm">
                     <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
@@ -286,6 +313,11 @@ function submitAction() {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <div v-else-if="listSearch || Object.values(filters).some(Boolean)" class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
+                <h2 class="text-lg font-semibold text-stone-900">Sin resultados</h2>
+                <p class="mt-2 text-sm text-stone-600">Ninguna vacunación coincide con la búsqueda o los filtros aplicados.</p>
+                <button type="button" class="mt-5 rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50" @click="clearFilters">Limpiar búsqueda y filtros</button>
             </div>
             <div v-else class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
                 <h2 class="text-lg font-semibold text-stone-900">Aún no hay vacunaciones registradas</h2>

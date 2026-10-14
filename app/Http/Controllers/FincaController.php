@@ -25,6 +25,14 @@ class FincaController extends Controller
     {
         return Inertia::render('Fincas/Index', [
             'fincas' => $request->user()->fincas()
+                ->when($request->filled('q'), function ($query) use ($request) {
+                    $term = '%'.$request->input('q').'%';
+                    $query->where(fn ($where) => $where
+                        ->where('name', 'like', $term)
+                        ->orWhere('location', 'like', $term));
+                })
+                ->when($request->input('estado') === 'activa', fn ($query) => $query->where('is_active', true))
+                ->when($request->input('estado') === 'inactiva', fn ($query) => $query->where('is_active', false))
                 ->withCount('animals')
                 ->latest()
                 ->get(),

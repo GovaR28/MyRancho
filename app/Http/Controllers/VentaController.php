@@ -18,6 +18,17 @@ class VentaController extends Controller
         return Inertia::render('Ventas/Index', [
             'ventas' => $request->user()->ventas()
                 ->with(['lote:id,name', 'animals:id,ear_tag,name'])
+                ->when($request->filled('q'), function ($query) use ($request) {
+                    $term = '%'.$request->input('q').'%';
+                    $query->where(fn ($where) => $where
+                        ->where('buyer_name', 'like', $term)
+                        ->orWhereHas('lote', fn ($lote) => $lote->where('name', 'like', $term))
+                        ->orWhereHas('animals', fn ($animal) => $animal
+                            ->where('ear_tag', 'like', $term)
+                            ->orWhere('name', 'like', $term)));
+                })
+                ->when($request->filled('desde'), fn ($query) => $query->whereDate('sale_date', '>=', $request->input('desde')))
+                ->when($request->filled('hasta'), fn ($query) => $query->whereDate('sale_date', '<=', $request->input('hasta')))
                 ->latest('sale_date')
                 ->latest('id')
                 ->get(),

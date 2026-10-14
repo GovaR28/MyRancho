@@ -1,6 +1,8 @@
 <script setup>
 import { Link, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, ref } from 'vue';
+import ListToolbar from '../../Components/ListToolbar.vue';
+import { useListFilters } from '../../Composables/useListFilters';
 
 const props = defineProps({
     lotes: { type: Array, required: true },
@@ -8,6 +10,9 @@ const props = defineProps({
 });
 
 const page = usePage();
+
+const { search: listSearch, updateSearch } = useListFilters('/lotes');
+
 const createOpen = ref(false);
 const search = ref('');
 const form = useForm({
@@ -66,6 +71,14 @@ function submit() {
             </div>
             <div v-if="page.props.flash?.success" class="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ page.props.flash.success }}</div>
 
+            <ListToolbar
+                :model-value="listSearch"
+                placeholder="Buscar lote por nombre o descripción"
+                :filters="[]"
+                :active-filters="{}"
+                @update:model-value="updateSearch"
+            />
+
             <div v-if="lotes.length" class="mt-6 grid gap-4 md:grid-cols-2">
                 <article v-for="lote in lotes" :key="lote.id" class="rounded-2xl border border-stone-200 bg-white p-5 shadow-sm">
                     <h2 class="text-lg font-semibold text-stone-900">{{ lote.name }}</h2>
@@ -73,6 +86,10 @@ function submit() {
                     <p class="mt-3 text-sm text-stone-500">{{ lote.animals_count }} animales · {{ lote.ventas_count }} ventas</p>
                     <Link :href="`/lotes/${lote.id}`" class="mt-4 inline-flex rounded-lg border border-stone-300 px-4 py-2 text-sm font-semibold text-stone-700 hover:bg-stone-50">Administrar lote</Link>
                 </article>
+            </div>
+            <div v-else-if="listSearch" class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
+                <h2 class="text-lg font-semibold text-stone-900">Sin resultados</h2>
+                <p class="mt-2 text-sm text-stone-600">Ningún lote coincide con la búsqueda.</p>
             </div>
             <div v-else class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
                 <h2 class="text-lg font-semibold text-stone-900">Aún no tienes lotes</h2>

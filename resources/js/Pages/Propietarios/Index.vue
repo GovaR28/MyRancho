@@ -1,12 +1,28 @@
 <script setup>
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { nextTick, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
+import ListToolbar from '../../Components/ListToolbar.vue';
+import { useListFilters } from '../../Composables/useListFilters';
 
 defineProps({
     propietarios: { type: Array, required: true },
 });
 
 const page = usePage();
+
+const { search, filters, updateSearch, applyFilters, clearFilters } = useListFilters('/propietarios', ['estado']);
+
+const listFilters = computed(() => [
+    {
+        key: 'estado',
+        label: 'Estado',
+        options: [
+            { value: 'activo', label: 'Activos' },
+            { value: 'inactivo', label: 'Inactivos' },
+        ],
+    },
+]);
+
 const isCreateModalOpen = ref(false);
 const editingOwner = ref(null);
 const pendingAction = ref(null);
@@ -121,6 +137,16 @@ function submitAction() {
             </div>
             <div v-if="page.props.flash?.success" class="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ page.props.flash.success }}</div>
 
+            <ListToolbar
+                :model-value="search"
+                placeholder="Buscar por nombre, parentesco o teléfono"
+                :filters="listFilters"
+                :active-filters="filters"
+                @update:model-value="updateSearch"
+                @apply="applyFilters"
+                @clear="clearFilters"
+            />
+
             <div v-if="propietarios.length" class="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
                 <div class="divide-y divide-stone-100">
                     <article v-for="owner in propietarios" :key="owner.id" class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -142,6 +168,11 @@ function submitAction() {
                         </div>
                     </article>
                 </div>
+            </div>
+            <div v-else-if="search || Object.values(filters).some(Boolean)" class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
+                <h2 class="text-lg font-semibold text-stone-900">Sin resultados</h2>
+                <p class="mt-2 text-sm text-stone-600">Ningún propietario coincide con la búsqueda o los filtros aplicados.</p>
+                <button type="button" class="mt-5 rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50" @click="clearFilters">Limpiar búsqueda y filtros</button>
             </div>
             <div v-else class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
                 <h2 class="text-lg font-semibold text-stone-900">Aún no hay propietarios registrados</h2>

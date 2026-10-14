@@ -17,6 +17,12 @@ class LoteController extends Controller
     {
         return Inertia::render('Lotes/Index', [
             'lotes' => $request->user()->lotes()
+                ->when($request->filled('q'), function ($query) use ($request) {
+                    $term = '%'.$request->input('q').'%';
+                    $query->where(fn ($where) => $where
+                        ->where('name', 'like', $term)
+                        ->orWhere('description', 'like', $term));
+                })
                 ->withCount('animals')
                 ->withCount('ventas')
                 ->latest()

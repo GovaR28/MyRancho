@@ -32,14 +32,39 @@ class VaccinationController extends Controller
         $vaccinations = $request->user()->vaccinations()
             ->with('lote:id,name')
             ->withCount('animals')
+            ->when($request->filled('q'), function ($query) use ($request) {
+                $term = '%'.$request->input('q').'%';
+                $query->where(fn ($where) => $where
+                    ->where('vaccine_name', 'like', $term)
+                    ->orWhere('vaccine_class', 'like', $term)
+                    ->orWhere('vaccinator', 'like', $term)
+                    ->orWhereHas('lote', fn ($lote) => $lote->where('name', 'like', $term)));
+            })
+            ->when($request->filled('clase'), fn ($query) => $query->where('vaccine_class', $request->input('clase')))
+            ->when($request->filled('alcance'), fn ($query) => $query->where('scope', $request->input('alcance')))
+            ->when($request->filled('desde'), fn ($query) => $query->whereDate('vaccination_date', '>=', $request->input('desde')))
+            ->when($request->filled('hasta'), fn ($query) => $query->whereDate('vaccination_date', '<=', $request->input('hasta')))
             ->orderByDesc('vaccination_date')
             ->latest('id')
             ->paginate(15)
             ->withQueryString();
 
+        $scopeLabels = [
+            'todo' => 'Todo el ganado',
+            'lote' => 'Lote',
+            'grupo' => 'Grupo de vacas',
+            'individual' => 'Animal individual',
+        ];
+
+        $filterOptions = [
+            'clase' => collect([...self::VACCINE_CLASSES, 'Otra'])->map(fn ($class) => ['value' => $class, 'label' => $class])->values(),
+            'alcance' => collect($scopeLabels)->map(fn ($label, $value) => ['value' => $value, 'label' => $label])->values(),
+        ];
+
         return Inertia::render('Vacunaciones/Index', [
             'vaccinations' => $vaccinations,
             'vaccineClasses' => [...self::VACCINE_CLASSES, 'Otra'],
+            'filterOptions' => $filterOptions,
             'vaccineSuggestions' => $request->user()->vaccinations()
                 ->distinct()
                 ->orderBy('vaccine_name')

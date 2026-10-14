@@ -22,12 +22,34 @@ class AnimalController extends Controller
     {
         $animals = $request->user()->animals()
             ->with(['finca:id,name,deleted_at', 'propietario:id,name,deleted_at', 'mother:id,ear_tag,name', 'father:id,ear_tag,name', 'ventas:id,sale_date,buyer_name,total_price'])
+            ->when($request->filled('q'), function ($query) use ($request) {
+                $term = '%'.$request->input('q').'%';
+                $query->where(fn ($where) => $where
+                    ->where('ear_tag', 'like', $term)
+                    ->orWhere('name', 'like', $term)
+                    ->orWhere('breed', 'like', $term)
+                    ->orWhere('color', 'like', $term));
+            })
+            ->when($request->filled('finca_id'), fn ($query) => $query->where('finca_id', $request->integer('finca_id')))
+            ->when($request->filled('sex'), fn ($query) => $query->where('sex', $request->input('sex')))
+            ->when($request->filled('acquisition_type'), fn ($query) => $query->where('acquisition_type', $request->input('acquisition_type')))
+            ->when($request->input('estado') === 'todos', fn ($query) => $query->withTrashed())
+            ->when($request->input('estado') === 'vendido', fn ($query) => $query->whereHas('ventas'))
+            ->when($request->input('estado') === 'activo', fn ($query) => $query->whereDoesntHave('ventas')->whereNull('deleted_at'))
             ->latest()
             ->paginate(15)
             ->withQueryString();
 
+        $filterOptions = [
+            'fincas' => $request->user()->fincas()->orderBy('name')->get(['id', 'name'])->map(fn ($finca) => [
+                'value' => $finca->id,
+                'label' => $finca->name,
+            ]),
+        ];
+
         return Inertia::render('Animales/Index', [
             'animals' => $animals,
+            'filterOptions' => $filterOptions,
         ]);
     }
 

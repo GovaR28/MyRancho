@@ -1,12 +1,28 @@
 <script setup>
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
-import { nextTick, ref } from 'vue';
+import { computed, nextTick, ref } from 'vue';
+import ListToolbar from '../../Components/ListToolbar.vue';
+import { useListFilters } from '../../Composables/useListFilters';
 
 defineProps({
     fincas: { type: Array, required: true },
 });
 
 const page = usePage();
+
+const { search, filters, updateSearch, applyFilters, clearFilters } = useListFilters('/fincas', ['estado']);
+
+const listFilters = computed(() => [
+    {
+        key: 'estado',
+        label: 'Estado',
+        options: [
+            { value: 'activa', label: 'Activas' },
+            { value: 'inactiva', label: 'Inactivas' },
+        ],
+    },
+]);
+
 const isCreateModalOpen = ref(false);
 const editingFinca = ref(null);
 const pendingAction = ref(null);
@@ -133,6 +149,16 @@ function submitAction() {
                 {{ page.props.flash.success }}
             </div>
 
+            <ListToolbar
+                :model-value="search"
+                placeholder="Buscar por nombre o ubicación"
+                :filters="listFilters"
+                :active-filters="filters"
+                @update:model-value="updateSearch"
+                @apply="applyFilters"
+                @clear="clearFilters"
+            />
+
             <div v-if="fincas.length" class="mt-6 overflow-hidden rounded-2xl border border-stone-200 bg-white shadow-sm">
                 <div class="divide-y divide-stone-100">
                     <article v-for="finca in fincas" :key="finca.id" class="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
@@ -155,6 +181,11 @@ function submitAction() {
                         </div>
                     </article>
                 </div>
+            </div>
+            <div v-else-if="search || Object.values(filters).some(Boolean)" class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
+                <h2 class="text-lg font-semibold text-stone-900">Sin resultados</h2>
+                <p class="mt-2 text-sm text-stone-600">Ninguna finca coincide con la búsqueda o los filtros aplicados.</p>
+                <button type="button" class="mt-5 rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50" @click="clearFilters">Limpiar búsqueda y filtros</button>
             </div>
             <div v-else class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
                 <h2 class="text-lg font-semibold text-stone-900">Aún no tienes fincas</h2>

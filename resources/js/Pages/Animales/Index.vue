@@ -1,10 +1,13 @@
 <script setup>
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
-import { nextTick, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
+import ListToolbar from '../../Components/ListToolbar.vue';
+import { useListFilters } from '../../Composables/useListFilters';
 
-defineProps({
+const props = defineProps({
     animals: { type: Object, required: true },
+    filterOptions: { type: Object, default: () => ({ fincas: [] }) },
 });
 
 const poundsPerKilogram = 2.2046226218;
@@ -16,6 +19,47 @@ const toKilograms = (pounds) => pounds === null || pounds === undefined || pound
     : Number((Number(pounds) / poundsPerKilogram).toFixed(2));
 
 const page = usePage();
+
+const { search, filters, updateSearch, applyFilters, clearFilters } = useListFilters('/animales', [
+    'finca_id',
+    'sex',
+    'acquisition_type',
+    'estado',
+]);
+
+const listFilters = computed(() => [
+    {
+        key: 'finca_id',
+        label: 'Finca',
+        options: props.filterOptions.fincas.map((finca) => ({ value: String(finca.value), label: finca.label })),
+    },
+    {
+        key: 'sex',
+        label: 'Sexo',
+        options: [
+            { value: 'hembra', label: 'Hembra' },
+            { value: 'macho', label: 'Macho' },
+        ],
+    },
+    {
+        key: 'acquisition_type',
+        label: 'Tipo de ingreso',
+        options: [
+            { value: 'born', label: 'Nacido en finca' },
+            { value: 'purchased', label: 'Comprado' },
+        ],
+    },
+    {
+        key: 'estado',
+        label: 'Estado',
+        options: [
+            { value: 'activo', label: 'Activos' },
+            { value: 'vendido', label: 'Vendidos' },
+            { value: 'todos', label: 'Todos (incluye archivados)' },
+        ],
+    },
+]);
+
 const animalModalOpen = ref(false);
 const previewAnimal = ref(null);
 const photoPreviewDialog = ref(null);
@@ -346,6 +390,16 @@ function submitAction() {
             </div>
             <div v-if="page.props.flash?.success" class="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ page.props.flash.success }}</div>
 
+            <ListToolbar
+                :model-value="search"
+                placeholder="Buscar por arete, nombre, raza o color"
+                :filters="listFilters"
+                :active-filters="filters"
+                @update:model-value="updateSearch"
+                @apply="applyFilters"
+                @clear="clearFilters"
+            />
+
             <div v-if="animals.data.length" class="mt-6 overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
                 <table class="w-full min-w-[980px] text-left text-sm">
                     <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
@@ -404,6 +458,11 @@ function submitAction() {
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <div v-else-if="search || Object.values(filters).some(Boolean)" class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
+                <h2 class="text-lg font-semibold text-stone-900">Sin resultados</h2>
+                <p class="mt-2 text-sm text-stone-600">Ningún animal coincide con la búsqueda o los filtros aplicados.</p>
+                <button type="button" class="mt-5 rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50" @click="clearFilters">Limpiar búsqueda y filtros</button>
             </div>
             <div v-else class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
                 <h2 class="text-lg font-semibold text-stone-900">Aún no hay animales registrados</h2>

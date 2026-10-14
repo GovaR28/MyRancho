@@ -1,11 +1,21 @@
 <script setup>
 import { Link, usePage } from '@inertiajs/vue3';
+import { computed } from 'vue';
+import ListToolbar from '../../Components/ListToolbar.vue';
+import { useListFilters } from '../../Composables/useListFilters';
 
 defineProps({
     ventas: { type: Array, required: true },
 });
 
 const page = usePage();
+
+const { search, filters, updateSearch, applyFilters, clearFilters } = useListFilters('/ventas', ['desde', 'hasta']);
+
+const listFilters = computed(() => [
+    { key: 'desde', label: 'Desde', type: 'date' },
+    { key: 'hasta', label: 'Hasta', type: 'date' },
+]);
 </script>
 
 <template>
@@ -23,6 +33,17 @@ const page = usePage();
                 <p class="mt-1 text-stone-600">Historial de animales vendidos individualmente o por lote.</p>
             </div>
             <div v-if="page.props.flash?.success" class="mt-5 rounded-lg border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-800">{{ page.props.flash.success }}</div>
+
+            <ListToolbar
+                :model-value="search"
+                placeholder="Buscar por comprador, lote, arete o nombre del animal"
+                :filters="listFilters"
+                :active-filters="filters"
+                @update:model-value="updateSearch"
+                @apply="applyFilters"
+                @clear="clearFilters"
+            />
+
             <div v-if="ventas.length" class="mt-6 overflow-x-auto rounded-2xl border border-stone-200 bg-white shadow-sm">
                 <table class="w-full min-w-[760px] text-left text-sm">
                     <thead class="bg-stone-50 text-xs uppercase tracking-wide text-stone-500">
@@ -47,6 +68,11 @@ const page = usePage();
                         </tr>
                     </tbody>
                 </table>
+            </div>
+            <div v-else-if="search || Object.values(filters).some(Boolean)" class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
+                <h2 class="text-lg font-semibold text-stone-900">Sin resultados</h2>
+                <p class="mt-2 text-sm text-stone-600">Ninguna venta coincide con la búsqueda o el rango de fechas.</p>
+                <button type="button" class="mt-5 rounded-lg border border-stone-300 px-4 py-2.5 text-sm font-semibold text-stone-700 hover:bg-stone-50" @click="clearFilters">Limpiar búsqueda y filtros</button>
             </div>
             <div v-else class="mt-6 rounded-2xl border border-dashed border-stone-300 bg-white px-6 py-14 text-center">
                 <h2 class="text-lg font-semibold text-stone-900">Aún no hay salidas registradas</h2>

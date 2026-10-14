@@ -14,6 +14,15 @@ class PropietarioController extends Controller
     {
         return Inertia::render('Propietarios/Index', [
             'propietarios' => $request->user()->propietarios()
+                ->when($request->filled('q'), function ($query) use ($request) {
+                    $term = '%'.$request->input('q').'%';
+                    $query->where(fn ($where) => $where
+                        ->where('name', 'like', $term)
+                        ->orWhere('phone', 'like', $term)
+                        ->orWhere('relationship', 'like', $term));
+                })
+                ->when($request->input('estado') === 'activo', fn ($query) => $query->where('is_active', true))
+                ->when($request->input('estado') === 'inactivo', fn ($query) => $query->where('is_active', false))
                 ->withCount('animals')
                 ->latest()
                 ->get(),
