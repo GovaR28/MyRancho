@@ -32,6 +32,8 @@ class Animal extends Model
      * @var list<array{value: int, label: string}>
      */
     public const PURCHASE_AGE_OPTIONS = [
+        ['value' => 1, 'label' => '1 mes'],
+        ['value' => 3, 'label' => '3 meses'],
         ['value' => 6, 'label' => '6 meses'],
         ['value' => 12, 'label' => '1 año'],
         ['value' => 24, 'label' => '2 años'],

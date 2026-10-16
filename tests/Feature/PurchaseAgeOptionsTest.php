@@ -52,9 +52,11 @@ class PurchaseAgeOptionsTest extends TestCase
 
         $this->actingAs($user)->get('/animales/create')
             ->assertInertia(fn ($page) => $page
-                ->where('purchaseAgeOptions.0.value', 6)
-                ->where('purchaseAgeOptions.0.label', '6 meses')
-                ->where('purchaseAgeOptions.7.value', 84)
-                ->where('purchaseAgeOptions.7.label', '7 años'));
+                ->where('purchaseAgeOptions.0.value', 1)
+                ->where('purchaseAgeOptions.0.label', '1 mes')
+                ->where('purchaseAgeOptions.2.value', 6)
+                ->where('purchaseAgeOptions.2.label', '6 meses')
+                ->where('purchaseAgeOptions.9.value', 84)
+                ->where('purchaseAgeOptions.9.label', '7 años'));
     }
 }
