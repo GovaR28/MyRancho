@@ -45,6 +45,7 @@ Route::middleware(['auth', PreventBackHistory::class])->group(function () {
     Route::get('/animales/{animal}/edit', [AnimalController::class, 'edit'])->name('animales.edit');
     Route::put('/animales/{animal}', [AnimalController::class, 'update'])->name('animales.update');
     Route::post('/animales/{animal}/baja', [AnimalController::class, 'darDeBaja'])->name('animales.baja');
+    Route::post('/animales/{animal}/reactivar', [AnimalController::class, 'reactivar'])->name('animales.reactivar');
 
     Route::get('/vacunaciones', [VaccinationController::class, 'index'])->name('vacunaciones.index');
     Route::get('/vacunaciones/create', [VaccinationController::class, 'create'])->name('vacunaciones.create');

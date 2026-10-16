@@ -1,5 +1,5 @@
 <script setup>
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import { computed, nextTick, ref, watch } from 'vue';
 import ListToolbar from '../../Components/ListToolbar.vue';
@@ -70,6 +70,8 @@ const bajaForm = useForm({
     exit_reason: '',
     exit_notes: '',
 });
+const reactivarTarget = ref(null);
+const reactivarProcessing = ref(false);
 const editForm = useForm({
     finca_id: '',
     propietario_id: '',
@@ -370,6 +372,29 @@ function submitBaja() {
         },
     });
 }
+
+function openReactivarModal(animal) {
+    reactivarTarget.value = animal;
+}
+
+function closeReactivarModal() {
+    if (reactivarProcessing.value) return;
+    reactivarTarget.value = null;
+}
+
+function submitReactivar() {
+    if (!reactivarTarget.value || reactivarProcessing.value) return;
+
+    reactivarProcessing.value = true;
+
+    router.post(`/animales/${reactivarTarget.value.id}/reactivar`, {}, {
+        preserveScroll: true,
+        onFinish: () => {
+            reactivarProcessing.value = false;
+            reactivarTarget.value = null;
+        },
+    });
+}
 </script>
 
 <template>
@@ -454,6 +479,7 @@ function submitBaja() {
                                     <button v-if="!animal.deleted_at && !animal.ventas?.length" type="button" class="font-medium text-green-800 dark:text-green-400 hover:underline" @click="openSaleModal(animal)">Vender</button>
                                     <button type="button" class="font-medium text-green-800 dark:text-green-400 hover:underline" @click="openEditModal(animal)">Editar</button>
                                     <button v-if="!animal.deleted_at && !animal.ventas?.length" type="button" class="font-medium text-red-700 dark:text-red-400 hover:underline" @click="openBajaModal(animal)">Dar de baja</button>
+                                    <button v-if="animal.deleted_at" type="button" class="font-medium text-green-800 dark:text-green-400 hover:underline" @click="openReactivarModal(animal)">Reactivar</button>
                                 </div>
                             </td>
                         </tr>
@@ -632,6 +658,16 @@ function submitBaja() {
                             <button type="submit" :disabled="bajaForm.processing" class="rounded-lg bg-red-700 px-4 py-2.5 text-sm font-semibold text-white hover:bg-red-600 disabled:opacity-50">{{ bajaForm.processing ? 'Guardando...' : 'Dar de baja' }}</button>
                         </div>
                     </form>
+                </section>
+            </div>
+            <div v-if="reactivarTarget" class="fixed inset-0 z-[60] flex items-center justify-center bg-stone-950/50 p-4" @click.self="closeReactivarModal" @keydown.esc="closeReactivarModal">
+                <section role="dialog" aria-modal="true" aria-labelledby="animal-reactivar-title" class="w-full max-w-md rounded-2xl bg-white dark:bg-stone-900 p-6 shadow-xl">
+                    <h2 id="animal-reactivar-title" class="text-xl font-bold text-stone-900 dark:text-stone-100">Reactivar animal</h2>
+                    <p class="mt-3 text-sm text-stone-600 dark:text-stone-400">¿Reactivar a {{ reactivarTarget.name || 'Sin nombre' }} (arete {{ reactivarTarget.ear_tag }})? Volverá al listado de activos y se borrará el motivo de baja.</p>
+                    <div class="mt-6 flex justify-end gap-3">
+                        <button type="button" :disabled="reactivarProcessing" class="rounded-lg border border-stone-300 dark:border-stone-700 px-4 py-2.5 text-sm font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-950 disabled:opacity-50" @click="closeReactivarModal">Cancelar</button>
+                        <button type="button" :disabled="reactivarProcessing" class="rounded-lg bg-green-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50" @click="submitReactivar">{{ reactivarProcessing ? 'Reactivando...' : 'Reactivar animal' }}</button>
+                    </div>
                 </section>
             </div>
             <div v-if="animalModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 p-4" @click.self="closeEditModal" @keydown.esc="closeEditModal">

@@ -126,4 +126,56 @@ class EarTagAndExitTest extends TestCase
 
         $this->assertNotSoftDeleted('animals', ['id' => $animal->id]);
     }
+
+    public function test_a_reactivated_animal_returns_to_the_active_list_without_a_baja_reason(): void
+    {
+        $user = User::factory()->create();
+        $finca = $user->fincas()->create(['name' => 'La Loma']);
+        $animal = $user->animals()->create([
+            'finca_id' => $finca->id,
+            'ear_tag' => '001',
+            'sex' => 'hembra',
+            'record_type' => 'comercial',
+        ]);
+
+        $this->actingAs($user)->post("/animales/{$animal->id}/baja", [
+            'exit_date' => '2026-10-10',
+            'exit_reason' => 'Muerte',
+            'exit_notes' => 'Error de registro.',
+        ])->assertRedirect('/animales');
+
+        $this->post("/animales/{$animal->id}/reactivar")->assertRedirect('/animales');
+
+        $this->assertNotSoftDeleted('animals', ['id' => $animal->id]);
+
+        $fresh = $animal->fresh();
+        $this->assertNull($fresh->exit_date);
+        $this->assertNull($fresh->exit_reason);
+        $this->assertNull($fresh->exit_notes);
+
+        $this->get('/animales?estado=activo')->assertInertia(fn ($page) => $page
+            ->has('animals.data', 1)
+            ->where('animals.data.0.ear_tag', '001'));
+
+        $this->get('/animales?estado=baja')->assertInertia(fn ($page) => $page->has('animals.data', 0));
+    }
+
+    public function test_reactivar_is_scoped_to_the_owner_and_requires_an_active_baja(): void
+    {
+        $user = User::factory()->create();
+        $other = User::factory()->create();
+        $finca = $user->fincas()->create(['name' => 'La Loma']);
+        $animal = $user->animals()->create([
+            'finca_id' => $finca->id,
+            'ear_tag' => '001',
+            'sex' => 'hembra',
+            'record_type' => 'comercial',
+        ]);
+
+        // Otro usuario no puede reactivar un animal ajeno.
+        $this->actingAs($other)->post("/animales/{$animal->id}/reactivar")->assertNotFound();
+
+        // Un animal que no está dado de baja tampoco se puede reactivar.
+        $this->actingAs($user)->post("/animales/{$animal->id}/reactivar")->assertNotFound();
+    }
 }

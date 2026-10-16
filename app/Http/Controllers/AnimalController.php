@@ -188,6 +188,20 @@ class AnimalController extends Controller
         return redirect()->route('animales.index')->with('success', 'Animal dado de baja; se conservaron sus vínculos y su número de arete.');
     }
 
+    public function reactivar(Request $request, int $animal): RedirectResponse
+    {
+        $record = $request->user()->animals()->onlyTrashed()->findOrFail($animal);
+
+        $record->restore();
+        $record->update([
+            'exit_date' => null,
+            'exit_reason' => null,
+            'exit_notes' => null,
+        ]);
+
+        return redirect()->route('animales.index')->with('success', 'Animal reactivado; vuelve al listado de activos.');
+    }
+
     private function formData(Request $request, ?Animal $animal = null): array
     {
         $user = $request->user();
