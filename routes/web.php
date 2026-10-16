@@ -3,6 +3,7 @@
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
 use App\Http\Controllers\AnimalController;
+use App\Http\Controllers\AnimalPhotoController;
 use App\Http\Controllers\FincaController;
 use App\Http\Controllers\LoteController;
 use App\Http\Controllers\PropietarioController;
@@ -46,6 +47,8 @@ Route::middleware(['auth', PreventBackHistory::class])->group(function () {
     Route::put('/animales/{animal}', [AnimalController::class, 'update'])->name('animales.update');
     Route::post('/animales/{animal}/baja', [AnimalController::class, 'darDeBaja'])->name('animales.baja');
     Route::post('/animales/{animal}/reactivar', [AnimalController::class, 'reactivar'])->name('animales.reactivar');
+    Route::post('/animales/{animal}/fotos', [AnimalPhotoController::class, 'store'])->name('animales.fotos.store');
+    Route::delete('/animales/{animal}/fotos/{photo}', [AnimalPhotoController::class, 'destroy'])->name('animales.fotos.destroy');
 
     Route::get('/vacunaciones', [VaccinationController::class, 'index'])->name('vacunaciones.index');
     Route::get('/vacunaciones/create', [VaccinationController::class, 'create'])->name('vacunaciones.create');

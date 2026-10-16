@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 use App\Models\Animal;
+use App\Models\AnimalPhoto;
 use App\Models\Finca;
 use App\Models\User;
 use Illuminate\Http\RedirectResponse;
@@ -10,7 +11,6 @@ use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Arr;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Facades\Storage;
 use Illuminate\Validation\Rule;
 use Illuminate\Validation\ValidationException;
 use Inertia\Inertia;
@@ -37,6 +37,9 @@ class AnimalController extends Controller
             ->when($request->input('estado') === 'baja', fn ($query) => $query->onlyTrashed())
             ->when($request->input('estado') === 'vendido', fn ($query) => $query->whereHas('ventas'))
             ->when($request->input('estado') === 'activo', fn ($query) => $query->whereDoesntHave('ventas')->whereNull('deleted_at'))
+            ->when($request->input('foto') === 'pendiente', fn ($query) => $query
+                ->whereNotNull('next_photo_due_on')
+                ->where('next_photo_due_on', '<=', now()->toDateString()))
             ->latest()
             ->paginate(15)
             ->withQueryString();
@@ -84,9 +87,9 @@ class AnimalController extends Controller
         $data = $this->validatedData($request);
         $this->validatePedigree($request, $data);
 
-        if ($request->hasFile('photo')) {
-            $data['photo_path'] = $request->file('photo')->store('animals', 'public');
-        }
+        $newPhotoPath = $request->hasFile('photo')
+            ? $request->file('photo')->store('animals', 'public')
+            : null;
 
         $offspring = $request->only([
             'offspring_sex',
@@ -94,11 +97,15 @@ class AnimalController extends Controller
             'offspring_birth_date',
             'offspring_weight_kg',
         ]);
-        DB::transaction(function () use ($request, $data, $offspring) {
+        DB::transaction(function () use ($request, $data, $offspring, $newPhotoPath) {
             $data['ear_tag'] = empty($data['ear_tag'])
                 ? Animal::nextEarTag($request->user())
                 : $data['ear_tag'];
             $animal = $request->user()->animals()->create($data);
+
+            if ($newPhotoPath) {
+                $animal->addPhoto($newPhotoPath, $request->input('photo_taken_at'));
+            }
 
             if ($request->boolean('came_with_offspring')) {
                 $request->user()->animals()->create([
@@ -150,14 +157,16 @@ class AnimalController extends Controller
         $data = $this->validatedData($request, $record);
         $this->validatePedigree($request, $data, $record);
 
-        if ($request->hasFile('photo')) {
-            $data['photo_path'] = $request->file('photo')->store('animals', 'public');
-            if ($record->photo_path) {
-                Storage::disk('public')->delete($record->photo_path);
-            }
-        }
+        $newPhotoPath = $request->hasFile('photo')
+            ? $request->file('photo')->store('animals', 'public')
+            : null;
 
         $record->update($data);
+
+        // La foto anterior no se borra: se conserva en el historial.
+        if ($newPhotoPath) {
+            $record->addPhoto($newPhotoPath, $request->input('photo_taken_at'));
+        }
 
         return redirect()->route('animales.index')->with('success', 'Animal actualizado correctamente.');
     }
@@ -240,9 +249,34 @@ class AnimalController extends Controller
             'mothers' => $mothers,
             'fathers' => $fathers,
             'propietarios' => $this->ownerOptions($user, $animal),
+            'photos' => $this->photoList($animal),
             'nextEarTag' => Animal::nextEarTag($user),
             'nextOffspringEarTag' => Animal::nextEarTag($user, 1),
         ];
+    }
+
+    /**
+     * Historial de fotos del animal con la edad en la que se tomaron.
+     */
+    private function photoList(?Animal $animal): array
+    {
+        if (! $animal) {
+            return [];
+        }
+
+        return $animal->photos()->get()->map(function (AnimalPhoto $photo) use ($animal): array {
+            $ageMonths = $animal->ageInMonthsAt($photo->taken_at);
+
+            return [
+                'id' => $photo->id,
+                'url' => asset('storage/'.$photo->path),
+                'path' => $photo->path,
+                'taken_at' => $photo->taken_at?->toDateString(),
+                'age_months' => $ageMonths,
+                'age_label' => Animal::formatAgeMonths($ageMonths),
+                'is_current' => $photo->path === $animal->photo_path,
+            ];
+        })->values()->all();
     }
 
     private function validatedData(Request $request, ?Animal $animal = null): array
@@ -315,6 +349,7 @@ class AnimalController extends Controller
             'mother_unknown' => ['nullable', 'boolean'],
             'father_unknown' => ['nullable', 'boolean'],
             'photo' => ['nullable', 'image', 'max:5120'],
+            'photo_taken_at' => ['nullable', 'date', 'before_or_equal:today'],
             'notes' => ['nullable', 'string', 'max:5000'],
         ], [
             'acquisition_type.required' => 'Indica si el animal nació en la finca o fue comprado.',

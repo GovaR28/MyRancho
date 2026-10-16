@@ -395,8 +395,11 @@ class LivestockManagementTest extends TestCase
 
         $animal->refresh();
         $this->assertNotSame($oldPath, $animal->photo_path);
-        $this->assertFalse(Storage::disk('public')->exists($oldPath));
+        // La foto anterior ya no es la actual, pero se conserva en el historial.
+        $this->assertTrue(Storage::disk('public')->exists($oldPath));
         $this->assertTrue(Storage::disk('public')->exists($animal->photo_path));
+        $this->assertSame(2, $animal->photos()->count());
+        $this->assertSame($oldPath, $animal->photos()->where('path', $oldPath)->value('path'));
     }
 
     public function test_animals_in_my_finca_can_be_assigned_to_a_family_member(): void

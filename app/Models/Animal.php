@@ -7,14 +7,26 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use Illuminate\Support\Carbon;
 use Illuminate\Support\Facades\Storage;
 
 class Animal extends Model
 {
     use HasFactory, SoftDeletes;
 
-    protected $appends = ['photo_url'];
+    /**
+     * Edades (en meses) en las que se pide actualizar la foto del animal.
+     */
+    public const PHOTO_MILESTONES = [6, 24, 48];
+
+    /**
+     * Solo se hace seguimiento de la foto a los animales registrados antes de esta edad (meses).
+     */
+    public const PHOTO_MAX_REGISTRATION_AGE = 24;
+
+    protected $appends = ['photo_url', 'photo_needs_update', 'photo_due_stage'];
 
     protected $fillable = [
         'finca_id',
@@ -48,6 +60,7 @@ class Animal extends Model
         'exit_reason',
         'exit_notes',
         'photo_path',
+        'next_photo_due_on',
         'notes',
     ];
 
@@ -57,6 +70,7 @@ class Animal extends Model
             'birth_date' => 'date',
             'purchase_date' => 'date',
             'exit_date' => 'date',
+            'next_photo_due_on' => 'date',
             'purchase_price' => 'decimal:2',
             'purchase_weight_kg' => 'decimal:2',
             'birth_weight_kg' => 'decimal:2',
@@ -94,6 +108,181 @@ class Animal extends Model
     protected function photoUrl(): Attribute
     {
         return Attribute::get(fn () => $this->photo_path ? asset('storage/'.$this->photo_path) : null);
+    }
+
+    protected static function booted(): void
+    {
+        // Mantiene el próximo aviso de foto calculado ante altas y ediciones.
+        static::created(fn (Animal $animal) => $animal->recalculateNextPhotoDue());
+        static::updated(fn (Animal $animal) => $animal->recalculateNextPhotoDue());
+    }
+
+    public function photos(): HasMany
+    {
+        return $this->hasMany(AnimalPhoto::class)
+            ->orderByDesc('taken_at')
+            ->orderByDesc('id');
+    }
+
+    /**
+     * Fecha de nacimiento efectiva: la registrada o la estimada a partir de la compra.
+     */
+    public function effectiveBirthDate(): ?Carbon
+    {
+        if ($this->birth_date) {
+            return $this->birth_date->copy();
+        }
+
+        if ($this->purchase_date && $this->age_at_purchase_months !== null) {
+            return $this->purchase_date->copy()->subMonths((int) $this->age_at_purchase_months);
+        }
+
+        return null;
+    }
+
+    /**
+     * Edad en meses del animal en una fecha concreta.
+     */
+    public function ageInMonthsAt(\DateTimeInterface|string|null $date): ?int
+    {
+        $birth = $this->effectiveBirthDate();
+
+        if (! $birth || ! $date) {
+            return null;
+        }
+
+        $target = $date instanceof \DateTimeInterface
+            ? Carbon::instance($date)
+            : Carbon::parse($date);
+
+        if ($target->lessThan($birth)) {
+            return 0;
+        }
+
+        $diff = $birth->diff($target);
+
+        return ($diff->y * 12) + $diff->m;
+    }
+
+    /**
+     * Edad con la que el animal entró al sistema (meses).
+     */
+    public function registrationAgeMonths(): ?int
+    {
+        if (! $this->created_at) {
+            return null;
+        }
+
+        return $this->ageInMonthsAt($this->created_at);
+    }
+
+    /**
+     * Etapas de foto que aplican a este animal: solo si fue registrado joven (< 2 años)
+     * y solo los hitos posteriores a la edad de registro.
+     *
+     * @return array<int, int>
+     */
+    public function photoMilestones(): array
+    {
+        $registrationAge = $this->registrationAgeMonths();
+
+        if ($registrationAge === null || $registrationAge >= self::PHOTO_MAX_REGISTRATION_AGE) {
+            return [];
+        }
+
+        return array_values(array_filter(
+            self::PHOTO_MILESTONES,
+            fn (int $month): bool => $month > $registrationAge,
+        ));
+    }
+
+    public static function formatAgeMonths(?int $months): ?string
+    {
+        if ($months === null) {
+            return null;
+        }
+
+        if ($months < 1) {
+            return 'Recién nacido';
+        }
+
+        if ($months < 12) {
+            return $months === 1 ? '1 mes' : "{$months} meses";
+        }
+
+        $years = intdiv($months, 12);
+        $remaining = $months % 12;
+        $label = $years === 1 ? '1 año' : "{$years} años";
+
+        return $remaining ? "{$label} {$remaining} m" : $label;
+    }
+
+    /**
+     * Recalcula la próxima fecha en la que se pedirá actualizar la foto.
+     */
+    public function recalculateNextPhotoDue(): void
+    {
+        $milestones = $this->photoMilestones();
+        $birth = $this->effectiveBirthDate();
+
+        if (empty($milestones) || ! $birth) {
+            $this->forceFill(['next_photo_due_on' => null])->saveQuietly();
+
+            return;
+        }
+
+        $latestAge = $this->photos()
+            ->get(['id', 'taken_at'])
+            ->max(fn (AnimalPhoto $photo): ?int => $this->ageInMonthsAt($photo->taken_at));
+
+        $due = null;
+
+        foreach ($milestones as $milestone) {
+            if ($latestAge === null || $latestAge < $milestone) {
+                $due = $birth->copy()->addMonths($milestone);
+                break;
+            }
+        }
+
+        $this->forceFill(['next_photo_due_on' => $due?->toDateString()])->saveQuietly();
+    }
+
+    /**
+     * Agrega una foto al historial y la deja como la foto actual.
+     */
+    public function addPhoto(string $path, \DateTimeInterface|string|null $takenAt = null): AnimalPhoto
+    {
+        $takenAt = $takenAt
+            ? ($takenAt instanceof \DateTimeInterface ? Carbon::instance($takenAt) : Carbon::parse($takenAt))
+            : now();
+
+        $photo = $this->photos()->create([
+            'user_id' => $this->user_id,
+            'path' => $path,
+            'taken_at' => $takenAt->toDateString(),
+        ]);
+
+        $this->forceFill(['photo_path' => $path])->saveQuietly();
+        $this->recalculateNextPhotoDue();
+
+        return $photo;
+    }
+
+    protected function photoNeedsUpdate(): Attribute
+    {
+        return Attribute::get(fn (): bool => $this->next_photo_due_on !== null
+            && $this->next_photo_due_on->lessThanOrEqualTo(now()));
+    }
+
+    protected function photoDueStage(): Attribute
+    {
+        return Attribute::get(function (): ?string {
+            if (! $this->next_photo_due_on) {
+                return null;
+            }
+
+            return self::formatAgeMonths($this->ageInMonthsAt($this->next_photo_due_on));
+        });
     }
 
     public function user(): BelongsTo

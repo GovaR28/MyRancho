@@ -18,6 +18,10 @@ class FincaController extends Controller
             'fincasCount' => $user->fincas()->count(),
             'activeFincasCount' => $user->fincas()->where('is_active', true)->count(),
             'animalsCount' => $user->animals()->count(),
+            'animalsNeedingPhotoCount' => $user->animals()
+                ->whereNotNull('next_photo_due_on')
+                ->where('next_photo_due_on', '<=', now()->toDateString())
+                ->count(),
         ]);
     }
 

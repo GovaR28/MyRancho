@@ -6,6 +6,7 @@ defineProps({
     fincasCount: { type: Number, default: 0 },
     activeFincasCount: { type: Number, default: 0 },
     animalsCount: { type: Number, default: 0 },
+    animalsNeedingPhotoCount: { type: Number, default: 0 },
 });
 </script>
 
@@ -49,6 +50,20 @@ defineProps({
                     </div>
                 </article>
             </div>
+
+            <Link
+                v-if="animalsNeedingPhotoCount > 0"
+                href="/animales?foto=pendiente"
+                class="mt-6 flex items-center justify-between gap-4 rounded-2xl border border-amber-300 dark:border-amber-800 bg-amber-50 dark:bg-amber-950 px-5 py-4 shadow-sm hover:bg-amber-100 dark:hover:bg-amber-900/50"
+            >
+                <div>
+                    <p class="font-semibold text-amber-900 dark:text-amber-200">
+                        {{ animalsNeedingPhotoCount }} {{ animalsNeedingPhotoCount === 1 ? 'animal necesita' : 'animales necesitan' }} actualizar la foto
+                    </p>
+                    <p class="mt-0.5 text-sm text-amber-800 dark:text-amber-300">Los chivos cambian mucho antes de los 2 años. Revisa y sube una foto reciente.</p>
+                </div>
+                <span class="whitespace-nowrap rounded-lg bg-amber-800 px-4 py-2 text-sm font-semibold text-white">Ver</span>
+            </Link>
 
             <section class="mt-8 rounded-2xl border border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900 p-6 shadow-sm">
                 <h2 class="text-lg font-semibold text-stone-900 dark:text-stone-100">Gestión</h2>

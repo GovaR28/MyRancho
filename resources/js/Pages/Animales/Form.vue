@@ -1,5 +1,5 @@
 <script setup>
-import { Link, useForm, usePage } from '@inertiajs/vue3';
+import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { nextTick, ref, watch } from 'vue';
 import { areaUnitLabel, toDisplayWeight, toStorageArea, toStorageWeight, weightUnitLabel } from '../../Composables/usePreferences';
 
@@ -9,6 +9,7 @@ const props = defineProps({
     mothers: { type: Array, required: true },
     fathers: { type: Array, required: true },
     propietarios: { type: Array, required: true },
+    photos: { type: Array, default: () => [] },
     nextEarTag: { type: String, default: '' },
     nextOffspringEarTag: { type: String, default: '' },
 });
@@ -43,8 +44,25 @@ const form = useForm({
     mother_id: props.animal?.mother_unknown ? 'unknown' : (props.animal?.mother_id ?? ''),
     father_id: props.animal?.father_unknown ? 'unknown' : (props.animal?.father_id ?? ''),
     photo: null,
+    photo_taken_at: new Date().toISOString().slice(0, 10),
     notes: props.animal?.notes ?? '',
 });
+
+const deletingPhotoId = ref(null);
+
+function removePhoto(photo) {
+    if (!props.animal || deletingPhotoId.value) return;
+
+    deletingPhotoId.value = photo.id;
+
+    router.delete(`/animales/${props.animal.id}/fotos/${photo.id}`, {
+        preserveScroll: true,
+        preserveState: true,
+        onFinish: () => {
+            deletingPhotoId.value = null;
+        },
+    });
+}
 
 const activeCreateModal = ref(null);
 const propietarioForm = useForm({
@@ -261,11 +279,32 @@ const page = usePage();
                                 <input id="reproduction_method_other" v-model="form.reproduction_method_other" maxlength="120" placeholder="Ej. Transferencia de embriones casera, compra de preñez" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
                                 <p v-if="form.errors.reproduction_method_other" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.reproduction_method_other }}</p>
                             </div>
-                            <div>
-                                <label for="photo" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Foto (máximo 5 MB)</label>
-                                <input id="photo" type="file" accept="image/*" @input="form.photo = $event.target.files[0]" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-green-50 dark:file:bg-green-950 file:px-3 file:py-1.5 file:font-medium file:text-green-800 dark:file:text-green-400">
-                                <p v-if="animal?.photo_path" class="mt-1 text-xs text-stone-500 dark:text-stone-400">Ya hay una foto; subir otra la reemplazará.</p>
-                                <p v-if="form.errors.photo" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.photo }}</p>
+                            <div class="sm:col-span-2 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 p-4">
+                                <p class="text-sm font-semibold text-stone-800 dark:text-stone-200">Fotos</p>
+                                <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">Los chivos cambian mucho antes de los 2 años. Guarda fotos por etapa para reconocerlos.</p>
+                                <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                    <div>
+                                        <label for="photo" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Nueva foto (máximo 5 MB)</label>
+                                        <input id="photo" type="file" accept="image/*" @input="form.photo = $event.target.files[0]" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-green-50 dark:file:bg-green-950 file:px-3 file:py-1.5 file:font-medium file:text-green-800 dark:file:text-green-400">
+                                        <p v-if="form.errors.photo" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.photo }}</p>
+                                    </div>
+                                    <div>
+                                        <label for="photo_taken_at" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Fecha de la foto</label>
+                                        <input id="photo_taken_at" v-model="form.photo_taken_at" type="date" :max="new Date().toISOString().slice(0, 10)" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
+                                        <p v-if="form.errors.photo_taken_at" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.photo_taken_at }}</p>
+                                    </div>
+                                </div>
+                                <div v-if="animal && photos.length" class="mt-4">
+                                    <p class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">Historial ({{ photos.length }})</p>
+                                    <div class="mt-2 flex flex-wrap gap-3">
+                                        <figure v-for="photo in photos" :key="photo.id" class="relative w-24">
+                                            <img :src="photo.url" :alt="`Foto a los ${photo.age_label || 'edad desconocida'}`" class="h-24 w-24 rounded-lg object-cover">
+                                            <span v-if="photo.is_current" class="absolute left-1 top-1 rounded-full bg-green-800 px-1.5 py-0.5 text-[10px] font-semibold text-white">Actual</span>
+                                            <button type="button" :disabled="deletingPhotoId === photo.id" :aria-label="`Eliminar foto de los ${photo.age_label || 'historial'}`" class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-700 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50" @click="removePhoto(photo)">×</button>
+                                            <figcaption class="mt-1 text-center text-[11px] text-stone-500 dark:text-stone-400">{{ photo.age_label || 'Sin fecha' }}</figcaption>
+                                        </figure>
+                                    </div>
+                                </div>
                             </div>
                         </div>
                     </section>

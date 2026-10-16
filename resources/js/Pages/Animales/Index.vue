@@ -19,6 +19,7 @@ const { search, filters, updateSearch, applyFilters, clearFilters } = useListFil
     'sex',
     'acquisition_type',
     'estado',
+    'foto',
 ]);
 
 const listFilters = computed(() => [
@@ -53,6 +54,13 @@ const listFilters = computed(() => [
             { value: 'todos', label: 'Todos' },
         ],
     },
+    {
+        key: 'foto',
+        label: 'Foto',
+        options: [
+            { value: 'pendiente', label: 'Foto por actualizar' },
+        ],
+    },
 ]);
 
 const animalModalOpen = ref(false);
@@ -72,6 +80,13 @@ const bajaForm = useForm({
 });
 const reactivarTarget = ref(null);
 const reactivarProcessing = ref(false);
+const editPhotos = ref([]);
+const deletingPhotoId = ref(null);
+const photoTarget = ref(null);
+const photoForm = useForm({
+    photo: null,
+    taken_at: new Date().toISOString().slice(0, 10),
+});
 const editForm = useForm({
     finca_id: '',
     propietario_id: '',
@@ -102,6 +117,7 @@ const editForm = useForm({
     mother_id: '',
     father_id: '',
     photo: null,
+    photo_taken_at: new Date().toISOString().slice(0, 10),
     notes: '',
 });
 const editOptions = ref({ fincas: [], propietarios: [], mothers: [], fathers: [] });
@@ -194,6 +210,7 @@ async function openCreateModal() {
     animalModalOpen.value = true;
     loadingAnimal.value = true;
     animalLoadError.value = '';
+    editPhotos.value = [];
     editForm.reset();
     editForm.transform((data) => data);
     editForm.clearErrors();
@@ -262,6 +279,7 @@ async function openEditModal(animal) {
         editForm.mother_id = data.animal.mother_unknown ? 'unknown' : (data.animal.mother_id ?? '');
         editForm.father_id = data.animal.father_unknown ? 'unknown' : (data.animal.father_id ?? '');
         editForm.photo = null;
+        editForm.photo_taken_at = new Date().toISOString().slice(0, 10);
         editForm.clearErrors();
         editOptions.value = {
             fincas: data.fincas,
@@ -269,6 +287,7 @@ async function openEditModal(animal) {
             mothers: data.mothers,
             fathers: data.fathers,
         };
+        editPhotos.value = data.photos ?? [];
         loadingAnimal.value = false;
         await nextTick();
         document.getElementById('edit-animal-ear-tag')?.focus();
@@ -395,6 +414,57 @@ function submitReactivar() {
         },
     });
 }
+
+function openPhotoModal(animal) {
+    photoTarget.value = animal;
+    photoForm.clearErrors();
+    photoForm.photo = null;
+    photoForm.taken_at = new Date().toISOString().slice(0, 10);
+}
+
+function closePhotoModal() {
+    if (photoForm.processing) return;
+    photoTarget.value = null;
+}
+
+function submitPhoto() {
+    if (!photoTarget.value || photoForm.processing) return;
+
+    photoForm.post(`/animales/${photoTarget.value.id}/fotos`, {
+        forceFormData: true,
+        preserveScroll: true,
+        onSuccess: () => {
+            photoTarget.value = null;
+            photoForm.reset();
+        },
+    });
+}
+
+async function reloadEditingAnimal() {
+    if (!editingAnimal.value) return;
+
+    const { data } = await axios.get(`/animales/${editingAnimal.value.id}/edit`, {
+        headers: { Accept: 'application/json' },
+    });
+
+    editingAnimal.value = data.animal;
+    editPhotos.value = data.photos ?? [];
+}
+
+function removePhoto(photo) {
+    if (!editingAnimal.value || deletingPhotoId.value) return;
+
+    deletingPhotoId.value = photo.id;
+
+    router.delete(`/animales/${editingAnimal.value.id}/fotos/${photo.id}`, {
+        preserveScroll: true,
+        preserveState: true,
+        onSuccess: () => reloadEditingAnimal(),
+        onFinish: () => {
+            deletingPhotoId.value = null;
+        },
+    });
+}
 </script>
 
 <template>
@@ -453,7 +523,7 @@ function submitReactivar() {
                                         <img :src="animal.photo_url" :alt="`Foto de ${animal.name || animal.ear_tag}`" class="h-11 w-11 rounded-lg object-cover">
                                     </button>
                                     <div>
-                                        <p class="font-semibold text-stone-900 dark:text-stone-100">{{ animal.name || 'Sin nombre' }} <span v-if="animal.ventas?.length" class="ml-1 rounded-full bg-stone-100 dark:bg-stone-800 px-2 py-0.5 text-xs font-medium text-stone-600 dark:text-stone-400">Vendido</span> <span v-if="animal.exit_date" :title="animal.exit_reason || 'Baja'" class="ml-1 rounded-full bg-red-100 dark:bg-red-950 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">Baja{{ animal.exit_reason ? ` · ${animal.exit_reason}` : '' }}</span></p>
+                                        <p class="font-semibold text-stone-900 dark:text-stone-100">{{ animal.name || 'Sin nombre' }} <span v-if="animal.ventas?.length" class="ml-1 rounded-full bg-stone-100 dark:bg-stone-800 px-2 py-0.5 text-xs font-medium text-stone-600 dark:text-stone-400">Vendido</span> <span v-if="animal.exit_date" :title="animal.exit_reason || 'Baja'" class="ml-1 rounded-full bg-red-100 dark:bg-red-950 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-400">Baja{{ animal.exit_reason ? ` · ${animal.exit_reason}` : '' }}</span> <span v-if="animal.photo_needs_update" :title="animal.photo_due_stage ? `Falta la foto de los ${animal.photo_due_stage}` : 'Falta actualizar la foto'" class="ml-1 rounded-full bg-amber-100 dark:bg-amber-950 px-2 py-0.5 text-xs font-medium text-amber-800 dark:text-amber-300">Foto por actualizar</span></p>
                                         <p class="mt-0.5 text-stone-500 dark:text-stone-400">Arete: {{ animal.ear_tag }}</p>
                                     </div>
                                 </div>
@@ -478,6 +548,7 @@ function submitReactivar() {
                                 <div class="flex flex-wrap gap-3">
                                     <button v-if="!animal.deleted_at && !animal.ventas?.length" type="button" class="font-medium text-green-800 dark:text-green-400 hover:underline" @click="openSaleModal(animal)">Vender</button>
                                     <button type="button" class="font-medium text-green-800 dark:text-green-400 hover:underline" @click="openEditModal(animal)">Editar</button>
+                                    <button v-if="!animal.deleted_at" type="button" :class="animal.photo_needs_update ? 'font-medium text-amber-700 dark:text-amber-400 hover:underline' : 'font-medium text-green-800 dark:text-green-400 hover:underline'" @click="openPhotoModal(animal)">Actualizar foto</button>
                                     <button v-if="!animal.deleted_at && !animal.ventas?.length" type="button" class="font-medium text-red-700 dark:text-red-400 hover:underline" @click="openBajaModal(animal)">Dar de baja</button>
                                     <button v-if="animal.deleted_at" type="button" class="font-medium text-green-800 dark:text-green-400 hover:underline" @click="openReactivarModal(animal)">Reactivar</button>
                                 </div>
@@ -670,6 +741,33 @@ function submitReactivar() {
                     </div>
                 </section>
             </div>
+            <div v-if="photoTarget" class="fixed inset-0 z-[60] flex items-center justify-center bg-stone-950/50 p-4" @click.self="closePhotoModal" @keydown.esc="closePhotoModal">
+                <section role="dialog" aria-modal="true" aria-labelledby="animal-photo-title" class="w-full max-w-md rounded-2xl bg-white dark:bg-stone-900 p-6 shadow-xl">
+                    <div class="flex items-start justify-between gap-4">
+                        <div>
+                            <h2 id="animal-photo-title" class="text-xl font-bold text-stone-900 dark:text-stone-100">Actualizar foto</h2>
+                            <p class="mt-1 text-sm text-stone-600 dark:text-stone-400">{{ photoTarget.name || 'Sin nombre' }} · Arete {{ photoTarget.ear_tag }}</p>
+                        </div>
+                        <button type="button" aria-label="Cerrar" :disabled="photoForm.processing" class="rounded-lg px-2 py-1 text-xl text-stone-500 dark:text-stone-400 hover:bg-stone-100 dark:hover:bg-stone-800" @click="closePhotoModal">×</button>
+                    </div>
+                    <form class="mt-5 space-y-4" @submit.prevent="submitPhoto">
+                        <div>
+                            <label for="animal-photo-file" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Nueva foto (máximo 5 MB) *</label>
+                            <input id="animal-photo-file" type="file" accept="image/*" required @input="photoForm.photo = $event.target.files[0]" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-green-50 dark:file:bg-green-950 file:px-3 file:py-1.5 file:font-medium file:text-green-800 dark:file:text-green-400">
+                            <p v-if="photoForm.errors.photo" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ photoForm.errors.photo }}</p>
+                        </div>
+                        <div>
+                            <label for="animal-photo-date" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Fecha de la foto</label>
+                            <input id="animal-photo-date" v-model="photoForm.taken_at" type="date" :max="new Date().toISOString().slice(0, 10)" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
+                            <p v-if="photoForm.errors.taken_at" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ photoForm.errors.taken_at }}</p>
+                        </div>
+                        <div class="flex justify-end gap-3 pt-2">
+                            <button type="button" :disabled="photoForm.processing" class="rounded-lg border border-stone-300 dark:border-stone-700 px-4 py-2.5 text-sm font-semibold text-stone-700 dark:text-stone-300 hover:bg-stone-50 dark:hover:bg-stone-950 disabled:opacity-50" @click="closePhotoModal">Cancelar</button>
+                            <button type="submit" :disabled="photoForm.processing" class="rounded-lg bg-green-800 px-4 py-2.5 text-sm font-semibold text-white hover:bg-green-700 disabled:opacity-50">{{ photoForm.processing ? 'Guardando...' : 'Guardar foto' }}</button>
+                        </div>
+                    </form>
+                </section>
+            </div>
             <div v-if="animalModalOpen" class="fixed inset-0 z-50 flex items-center justify-center bg-stone-950/50 p-4" @click.self="closeEditModal" @keydown.esc="closeEditModal">
                 <section role="dialog" aria-modal="true" aria-labelledby="edit-animal-title" class="flex max-h-[92vh] w-full max-w-3xl flex-col overflow-hidden rounded-2xl bg-white dark:bg-stone-900 shadow-xl">
                     <div class="flex shrink-0 items-start justify-between gap-4 border-b border-stone-100 dark:border-stone-800 px-6 pb-5 pt-6 sm:px-8 sm:pt-8">
@@ -779,11 +877,35 @@ function submitReactivar() {
                                     <input id="edit-animal-reproduction-other" v-model="editForm.reproduction_method_other" maxlength="120" placeholder="Ej. Transferencia de embriones casera, compra de preñez" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
                                     <p v-if="editForm.errors.reproduction_method_other" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ editForm.errors.reproduction_method_other }}</p>
                                 </div>
-                                <div>
-                                    <label for="edit-animal-photo" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Foto (máximo 5 MB)</label>
-                                    <input id="edit-animal-photo" type="file" accept="image/*" @input="editForm.photo = $event.target.files[0]" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-green-50 dark:file:bg-green-950 file:px-3 file:py-1.5 file:font-medium file:text-green-800 dark:file:text-green-400">
-                                    <p v-if="editingAnimal?.photo_path" class="mt-1 text-xs text-stone-500 dark:text-stone-400">Ya hay una foto; subir otra la reemplazará.</p>
-                                    <p v-if="editForm.errors.photo" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ editForm.errors.photo }}</p>
+                                <div class="sm:col-span-2 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 p-4">
+                                    <p class="text-sm font-semibold text-stone-800 dark:text-stone-200">Fotos</p>
+                                    <p class="mt-1 text-xs text-stone-500 dark:text-stone-400">Los chivos cambian mucho antes de los 2 años. Guarda fotos por etapa (6 meses, 2 y 4 años) para reconocerlos.</p>
+
+                                    <div class="mt-3 grid gap-3 sm:grid-cols-2">
+                                        <div>
+                                            <label for="edit-animal-photo" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Nueva foto (máximo 5 MB)</label>
+                                            <input id="edit-animal-photo" type="file" accept="image/*" @input="editForm.photo = $event.target.files[0]" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-green-50 dark:file:bg-green-950 file:px-3 file:py-1.5 file:font-medium file:text-green-800 dark:file:text-green-400">
+                                            <p v-if="editForm.errors.photo" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ editForm.errors.photo }}</p>
+                                        </div>
+                                        <div>
+                                            <label for="edit-animal-photo-date" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Fecha de la foto</label>
+                                            <input id="edit-animal-photo-date" v-model="editForm.photo_taken_at" type="date" :max="new Date().toISOString().slice(0, 10)" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
+                                            <p v-if="editForm.errors.photo_taken_at" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ editForm.errors.photo_taken_at }}</p>
+                                        </div>
+                                    </div>
+
+                                    <div v-if="editingAnimal && editPhotos.length" class="mt-4">
+                                        <p class="text-xs font-medium uppercase tracking-wide text-stone-500 dark:text-stone-400">Historial ({{ editPhotos.length }})</p>
+                                        <div class="mt-2 flex flex-wrap gap-3">
+                                            <figure v-for="photo in editPhotos" :key="photo.id" class="relative w-24">
+                                                <img :src="photo.url" :alt="`Foto a los ${photo.age_label || 'edad desconocida'}`" class="h-24 w-24 rounded-lg object-cover">
+                                                <span v-if="photo.is_current" class="absolute left-1 top-1 rounded-full bg-green-800 px-1.5 py-0.5 text-[10px] font-semibold text-white">Actual</span>
+                                                <button type="button" :disabled="deletingPhotoId === photo.id" :aria-label="`Eliminar foto de los ${photo.age_label || 'historial'}`" class="absolute -right-1.5 -top-1.5 flex h-5 w-5 items-center justify-center rounded-full bg-red-700 text-xs font-bold text-white hover:bg-red-600 disabled:opacity-50" @click="removePhoto(photo)">×</button>
+                                                <figcaption class="mt-1 text-center text-[11px] text-stone-500 dark:text-stone-400">{{ photo.age_label || 'Sin fecha' }}</figcaption>
+                                            </figure>
+                                        </div>
+                                    </div>
+                                    <p v-else-if="editingAnimal" class="mt-3 text-xs text-stone-500 dark:text-stone-400">Aún no hay fotos en el historial.</p>
                                 </div>
                             </div>
                         </section>
