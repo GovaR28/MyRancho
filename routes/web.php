@@ -6,6 +6,7 @@ use App\Http\Controllers\AnimalController;
 use App\Http\Controllers\FincaController;
 use App\Http\Controllers\LoteController;
 use App\Http\Controllers\PropietarioController;
+use App\Http\Controllers\ProfileController;
 use App\Http\Controllers\VaccinationController;
 use App\Http\Controllers\VentaController;
 use App\Http\Middleware\PreventBackHistory;
@@ -43,7 +44,7 @@ Route::middleware(['auth', PreventBackHistory::class])->group(function () {
     Route::post('/animales', [AnimalController::class, 'store'])->name('animales.store');
     Route::get('/animales/{animal}/edit', [AnimalController::class, 'edit'])->name('animales.edit');
     Route::put('/animales/{animal}', [AnimalController::class, 'update'])->name('animales.update');
-    Route::delete('/animales/{animal}', [AnimalController::class, 'destroy'])->name('animales.destroy');
+    Route::post('/animales/{animal}/baja', [AnimalController::class, 'darDeBaja'])->name('animales.baja');
 
     Route::get('/vacunaciones', [VaccinationController::class, 'index'])->name('vacunaciones.index');
     Route::get('/vacunaciones/create', [VaccinationController::class, 'create'])->name('vacunaciones.create');
@@ -60,4 +61,7 @@ Route::middleware(['auth', PreventBackHistory::class])->group(function () {
     Route::get('/ventas', [VentaController::class, 'index'])->name('ventas.index');
     Route::post('/ventas', [VentaController::class, 'store'])->name('ventas.store');
     Route::post('logout', [LoginController::class, 'destroy'])->name('logout');
+
+    Route::get('/perfil', [ProfileController::class, 'edit'])->name('perfil.edit');
+    Route::put('/perfil', [ProfileController::class, 'update'])->name('perfil.update');
 });

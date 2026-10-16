@@ -312,7 +312,7 @@ class LivestockManagementTest extends TestCase
         $this->assertDatabaseCount('animals', 3);
     }
 
-    public function test_animal_parent_relationship_cannot_create_a_genealogy_cycle_and_archiving_keeps_parents(): void
+    public function test_animal_parent_relationship_cannot_create_a_genealogy_cycle_and_baja_keeps_parents(): void
     {
         $user = User::factory()->create();
         $finca = $user->fincas()->create(['name' => 'El Nogal']);
@@ -346,9 +346,15 @@ class LivestockManagementTest extends TestCase
             'mother_id' => $grandmother->id,
         ])->assertSessionHasErrors('mother_id');
 
-        $this->delete("/animales/{$grandmother->id}")->assertRedirect('/animales');
+        $this->post("/animales/{$grandmother->id}/baja", [
+            'exit_date' => '2026-10-15',
+            'exit_reason' => 'Muerte',
+        ])->assertRedirect('/animales');
 
-        $this->assertSoftDeleted('animals', ['id' => $grandmother->id]);
+        $this->assertSoftDeleted('animals', [
+            'id' => $grandmother->id,
+            'exit_reason' => 'Muerte',
+        ]);
         $this->assertSame($grandmother->id, $mother->fresh()->mother_id);
         $this->assertSame('G-01', $mother->fresh()->mother->ear_tag);
     }
@@ -541,7 +547,7 @@ class LivestockManagementTest extends TestCase
         ])->assertRedirect('/animales');
 
         $cow = Animal::where('ear_tag', 'V-100')->firstOrFail();
-        $calf = Animal::where('ear_tag', 'C-100')->firstOrFail();
+        $calf = Animal::where('mother_id', $cow->id)->firstOrFail();
 
         $this->assertSame($cow->id, $calf->mother_id);
         $this->assertSame($finca->id, $calf->finca_id);
@@ -561,7 +567,7 @@ class LivestockManagementTest extends TestCase
             'purchase_source' => 'particular',
             'record_type' => 'comercial',
             'came_with_offspring' => '1',
-        ])->assertSessionHasErrors(['offspring_ear_tag', 'offspring_sex']);
+        ])->assertSessionHasErrors(['offspring_sex']);
 
         $this->from('/animales')->post('/animales', [
             'finca_id' => $finca->id,
@@ -574,18 +580,6 @@ class LivestockManagementTest extends TestCase
             'offspring_ear_tag' => 'C-102',
             'offspring_sex' => 'macho',
         ])->assertSessionHasErrors('came_with_offspring');
-
-        $this->from('/animales')->post('/animales', [
-            'finca_id' => $finca->id,
-            'ear_tag' => 'V-102',
-            'sex' => 'hembra',
-            'acquisition_type' => 'purchased',
-            'purchase_source' => 'hacienda',
-            'record_type' => 'comercial',
-            'came_with_offspring' => '1',
-            'offspring_ear_tag' => 'V-102',
-            'offspring_sex' => 'macho',
-        ])->assertSessionHasErrors('offspring_ear_tag');
 
         $this->assertDatabaseCount('animals', 2);
     }

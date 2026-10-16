@@ -34,6 +34,7 @@ class AnimalController extends Controller
             ->when($request->filled('sex'), fn ($query) => $query->where('sex', $request->input('sex')))
             ->when($request->filled('acquisition_type'), fn ($query) => $query->where('acquisition_type', $request->input('acquisition_type')))
             ->when($request->input('estado') === 'todos', fn ($query) => $query->withTrashed())
+            ->when($request->input('estado') === 'baja', fn ($query) => $query->onlyTrashed())
             ->when($request->input('estado') === 'vendido', fn ($query) => $query->whereHas('ventas'))
             ->when($request->input('estado') === 'activo', fn ($query) => $query->whereDoesntHave('ventas')->whereNull('deleted_at'))
             ->latest()
@@ -88,13 +89,15 @@ class AnimalController extends Controller
         }
 
         $offspring = $request->only([
-            'offspring_ear_tag',
             'offspring_sex',
             'offspring_name',
             'offspring_birth_date',
             'offspring_weight_kg',
         ]);
         DB::transaction(function () use ($request, $data, $offspring) {
+            $data['ear_tag'] = empty($data['ear_tag'])
+                ? Animal::nextEarTag($request->user())
+                : $data['ear_tag'];
             $animal = $request->user()->animals()->create($data);
 
             if ($request->boolean('came_with_offspring')) {
@@ -102,7 +105,7 @@ class AnimalController extends Controller
                     'finca_id' => $animal->finca_id,
                     'propietario_id' => $animal->propietario_id,
                     'mother_id' => $animal->id,
-                    'ear_tag' => $offspring['offspring_ear_tag'],
+                    'ear_tag' => Animal::nextEarTag($request->user()),
                     'name' => $offspring['offspring_name'] ?? null,
                     'sex' => $offspring['offspring_sex'],
                     'birth_date' => $offspring['offspring_birth_date'] ?? null,
@@ -159,12 +162,30 @@ class AnimalController extends Controller
         return redirect()->route('animales.index')->with('success', 'Animal actualizado correctamente.');
     }
 
-    public function destroy(Request $request, int $animal): RedirectResponse
+    public function darDeBaja(Request $request, int $animal): RedirectResponse
     {
         $record = $request->user()->animals()->findOrFail($animal);
+
+        if ($record->ventas()->exists()) {
+            throw ValidationException::withMessages([
+                'exit_reason' => 'Este animal ya figura como vendido, así que no se puede dar de baja.',
+            ]);
+        }
+
+        $data = $request->validate([
+            'exit_date' => ['required', 'date', 'before_or_equal:today'],
+            'exit_reason' => ['required', 'string', 'max:120'],
+            'exit_notes' => ['nullable', 'string', 'max:5000'],
+        ], [
+            'exit_date.required' => 'Indica la fecha de la baja.',
+            'exit_date.before_or_equal' => 'La fecha de baja no puede ser futura.',
+            'exit_reason.required' => 'Indica el motivo de la baja (muerte, robo, pérdida…).',
+        ]);
+
+        $record->update($data);
         $record->delete();
 
-        return redirect()->route('animales.index')->with('success', 'Animal archivado; se conservaron sus vínculos genealógicos.');
+        return redirect()->route('animales.index')->with('success', 'Animal dado de baja; se conservaron sus vínculos y su número de arete.');
     }
 
     private function formData(Request $request, ?Animal $animal = null): array
@@ -205,6 +226,8 @@ class AnimalController extends Controller
             'mothers' => $mothers,
             'fathers' => $fathers,
             'propietarios' => $this->ownerOptions($user, $animal),
+            'nextEarTag' => Animal::nextEarTag($user),
+            'nextOffspringEarTag' => Animal::nextEarTag($user, 1),
         ];
     }
 
@@ -236,7 +259,8 @@ class AnimalController extends Controller
                 }),
             ],
             'ear_tag' => [
-                'required',
+                // En el alta el arete se asigna automáticamente (consecutivo); al editar sí se permite cambiarlo.
+                $animal ? 'required' : 'nullable',
                 'string',
                 'max:100',
                 Rule::unique('animals', 'ear_tag')->where(fn ($query) => $query->where('user_id', $request->user()->id))
@@ -259,14 +283,6 @@ class AnimalController extends Controller
             'age_at_purchase_months' => ['nullable', 'integer', 'min:0', 'max:1000'],
             'came_with_mother' => ['nullable', 'boolean'],
             'came_with_offspring' => ['nullable', 'boolean'],
-            'offspring_ear_tag' => [
-                'nullable',
-                'string',
-                'max:100',
-                'different:ear_tag',
-                'required_if:came_with_offspring,1',
-                Rule::unique('animals', 'ear_tag')->where(fn ($query) => $query->where('user_id', $request->user()->id)),
-            ],
             'offspring_sex' => ['nullable', Rule::in(['hembra', 'macho']), 'required_if:came_with_offspring,1'],
             'offspring_name' => ['nullable', 'string', 'max:255'],
             'offspring_birth_date' => ['nullable', 'date', 'before_or_equal:today'],

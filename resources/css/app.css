@@ -1,5 +1,8 @@
 @import 'tailwindcss';
 
+/* Modo oscuro controlado por la clase `.dark` en <html> (en vez de preferencia del sistema). */
+@custom-variant dark (&:where(.dark, .dark *));
+
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
@@ -9,4 +12,117 @@
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
         'Segoe UI Symbol', 'Noto Color Emoji';
+}
+
+/* ---------------------------------------------------------------------------
+   Preferencias visuales del usuario
+   Se controlan con atributos data-* en <html>, aplicados por JS y guardados en
+   localStorage. Ver resources/js/Composables/usePreferences.js
+   --------------------------------------------------------------------------- */
+
+/* Color de acento: la app usa la escala `green` como color de marca, así que la
+   reasignamos a la paleta elegida. El verde (por defecto) no necesita override.
+   Como Tailwind v4 genera utilidades que referencian var(--color-green-*),
+   basta con redefinir esos valores. */
+html[data-accent='blue'] {
+    --color-green-50: var(--color-blue-50);
+    --color-green-100: var(--color-blue-100);
+    --color-green-200: var(--color-blue-200);
+    --color-green-300: var(--color-blue-300);
+    --color-green-400: var(--color-blue-400);
+    --color-green-500: var(--color-blue-500);
+    --color-green-600: var(--color-blue-600);
+    --color-green-700: var(--color-blue-700);
+    --color-green-800: var(--color-blue-800);
+    --color-green-900: var(--color-blue-900);
+    --color-green-950: var(--color-blue-950);
+}
+
+html[data-accent='indigo'] {
+    --color-green-50: var(--color-indigo-50);
+    --color-green-100: var(--color-indigo-100);
+    --color-green-200: var(--color-indigo-200);
+    --color-green-300: var(--color-indigo-300);
+    --color-green-400: var(--color-indigo-400);
+    --color-green-500: var(--color-indigo-500);
+    --color-green-600: var(--color-indigo-600);
+    --color-green-700: var(--color-indigo-700);
+    --color-green-800: var(--color-indigo-800);
+    --color-green-900: var(--color-indigo-900);
+    --color-green-950: var(--color-indigo-950);
+}
+
+html[data-accent='violet'] {
+    --color-green-50: var(--color-violet-50);
+    --color-green-100: var(--color-violet-100);
+    --color-green-200: var(--color-violet-200);
+    --color-green-300: var(--color-violet-300);
+    --color-green-400: var(--color-violet-400);
+    --color-green-500: var(--color-violet-500);
+    --color-green-600: var(--color-violet-600);
+    --color-green-700: var(--color-violet-700);
+    --color-green-800: var(--color-violet-800);
+    --color-green-900: var(--color-violet-900);
+    --color-green-950: var(--color-violet-950);
+}
+
+html[data-accent='teal'] {
+    --color-green-50: var(--color-teal-50);
+    --color-green-100: var(--color-teal-100);
+    --color-green-200: var(--color-teal-200);
+    --color-green-300: var(--color-teal-300);
+    --color-green-400: var(--color-teal-400);
+    --color-green-500: var(--color-teal-500);
+    --color-green-600: var(--color-teal-600);
+    --color-green-700: var(--color-teal-700);
+    --color-green-800: var(--color-teal-800);
+    --color-green-900: var(--color-teal-900);
+    --color-green-950: var(--color-teal-950);
+}
+
+html[data-accent='rose'] {
+    --color-green-50: var(--color-rose-50);
+    --color-green-100: var(--color-rose-100);
+    --color-green-200: var(--color-rose-200);
+    --color-green-300: var(--color-rose-300);
+    --color-green-400: var(--color-rose-400);
+    --color-green-500: var(--color-rose-500);
+    --color-green-600: var(--color-rose-600);
+    --color-green-700: var(--color-rose-700);
+    --color-green-800: var(--color-rose-800);
+    --color-green-900: var(--color-rose-900);
+    --color-green-950: var(--color-rose-950);
+}
+
+html[data-accent='amber'] {
+    --color-green-50: var(--color-amber-50);
+    --color-green-100: var(--color-amber-100);
+    --color-green-200: var(--color-amber-200);
+    --color-green-300: var(--color-amber-300);
+    --color-green-400: var(--color-amber-400);
+    --color-green-500: var(--color-amber-500);
+    --color-green-600: var(--color-amber-600);
+    --color-green-700: var(--color-amber-700);
+    --color-green-800: var(--color-amber-800);
+    --color-green-900: var(--color-amber-900);
+    --color-green-950: var(--color-amber-950);
+}
+
+/* Densidad: Tailwind v4 calcula los espaciados con calc(var(--spacing) * N),
+   así que ajustar --spacing cambia el aire de toda la interfaz. */
+html[data-density='compact'] {
+    --spacing: 0.21rem;
+}
+
+html[data-density='comfortable'] {
+    --spacing: 0.29rem;
+}
+
+/* Tamaño de texto: escala la raíz (rem), afectando texto y espaciado. */
+html[data-text-size='sm'] {
+    font-size: 93.75%;
+}
+
+html[data-text-size='lg'] {
+    font-size: 112.5%;
 }

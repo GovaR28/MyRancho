@@ -44,6 +44,9 @@ class Animal extends Model
         'purchased_breed',
         'record_type',
         'registration_number',
+        'exit_date',
+        'exit_reason',
+        'exit_notes',
         'photo_path',
         'notes',
     ];
@@ -53,6 +56,7 @@ class Animal extends Model
         return [
             'birth_date' => 'date',
             'purchase_date' => 'date',
+            'exit_date' => 'date',
             'purchase_price' => 'decimal:2',
             'purchase_weight_kg' => 'decimal:2',
             'birth_weight_kg' => 'decimal:2',
@@ -60,6 +64,31 @@ class Animal extends Model
             'father_unknown' => 'boolean',
             'came_with_mother' => 'boolean',
         ];
+    }
+
+    /**
+     * Devuelve el siguiente número de arete consecutivo para la cuenta.
+     *
+     * Se calcula sobre el mayor número ya usado (incluyendo vendidos y animales
+     * dados de baja), así un arete nunca se reutiliza. Los aretes no numéricos
+     * (p. ej. "A-01") se ignoran. Se muestra con ceros a la izquierda (001, 002…).
+     */
+    public static function nextEarTag(User $user, int $offset = 0): string
+    {
+        $highest = $user->animals()
+            ->withTrashed()
+            ->pluck('ear_tag')
+            ->reduce(function (int $carry, $tag): int {
+                $digits = ltrim((string) $tag, '0');
+
+                if ($digits !== '' && ctype_digit($digits)) {
+                    return max($carry, (int) $digits);
+                }
+
+                return $carry;
+            }, 0);
+
+        return str_pad((string) ($highest + 1 + $offset), 3, '0', STR_PAD_LEFT);
     }
 
     protected function photoUrl(): Attribute
