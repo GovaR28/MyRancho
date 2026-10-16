@@ -1,5 +1,6 @@
 <script setup>
 import { Link, useForm } from '@inertiajs/vue3';
+import HeaderActions from '../../Components/HeaderActions.vue';
 
 const props = defineProps({
     propietario: { type: Object, default: null },
@@ -25,8 +26,9 @@ function submit() {
 <template>
     <div class="min-h-screen bg-stone-50 dark:bg-stone-950">
         <header class="border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
-            <div class="mx-auto max-w-3xl px-4 py-4">
+            <div class="mx-auto flex max-w-3xl items-center justify-between px-4 py-4">
                 <Link href="/dashboard" class="text-xl font-bold text-green-800 dark:text-green-400">MyRancho</Link>
+                <HeaderActions />
             </div>
         </header>
         <main class="mx-auto max-w-3xl px-4 py-8">

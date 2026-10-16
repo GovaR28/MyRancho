@@ -2,7 +2,7 @@
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { computed, nextTick, ref } from 'vue';
 import ListToolbar from '../../Components/ListToolbar.vue';
-import UserMenu from '../../Components/UserMenu.vue';
+import HeaderActions from '../../Components/HeaderActions.vue';
 import { useListFilters } from '../../Composables/useListFilters';
 import { areaUnitLabel, formatArea, toDisplayArea, toStorageArea } from '../../Composables/usePreferences';
 
@@ -135,7 +135,7 @@ function submitAction() {
         <header class="border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
                 <Link href="/dashboard" class="text-xl font-bold text-green-800 dark:text-green-400">MyRancho</Link>
-                <UserMenu />
+                <HeaderActions />
             </div>
         </header>
         <main class="mx-auto max-w-6xl px-4 py-8">

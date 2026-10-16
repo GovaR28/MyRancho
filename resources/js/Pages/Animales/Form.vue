@@ -2,6 +2,7 @@
 import { Link, router, useForm, usePage } from '@inertiajs/vue3';
 import { nextTick, ref, watch } from 'vue';
 import { areaUnitLabel, toDisplayWeight, toStorageArea, toStorageWeight, weightUnitLabel } from '../../Composables/usePreferences';
+import HeaderActions from '../../Components/HeaderActions.vue';
 
 const props = defineProps({
     animal: { type: Object, default: null },
@@ -158,8 +159,9 @@ const page = usePage();
 <template>
     <div class="min-h-screen bg-stone-50 dark:bg-stone-950">
         <header class="border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
-            <div class="mx-auto max-w-4xl px-4 py-4">
+            <div class="mx-auto flex max-w-4xl items-center justify-between px-4 py-4">
                 <Link href="/dashboard" class="text-xl font-bold text-green-800 dark:text-green-400">MyRancho</Link>
+                <HeaderActions />
             </div>
         </header>
         <main class="mx-auto max-w-4xl px-4 py-8">

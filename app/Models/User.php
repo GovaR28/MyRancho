@@ -77,4 +77,9 @@ class User extends Authenticatable
     {
         return $this->hasMany(Vaccination::class);
     }
+
+    public function alertDismissals(): HasMany
+    {
+        return $this->hasMany(AlertDismissal::class);
+    }
 }

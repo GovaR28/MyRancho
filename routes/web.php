@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Auth\LoginController;
 use App\Http\Controllers\Auth\RegisterController;
+use App\Http\Controllers\AlertController;
 use App\Http\Controllers\AnimalController;
 use App\Http\Controllers\AnimalPhotoController;
 use App\Http\Controllers\FincaController;
@@ -68,4 +69,8 @@ Route::middleware(['auth', PreventBackHistory::class])->group(function () {
 
     Route::get('/perfil', [ProfileController::class, 'edit'])->name('perfil.edit');
     Route::put('/perfil', [ProfileController::class, 'update'])->name('perfil.update');
+
+    Route::get('/alertas', [AlertController::class, 'index'])->name('alertas.index');
+    Route::post('/alertas/ocultar', [AlertController::class, 'dismiss'])->name('alertas.dismiss');
+    Route::post('/alertas/ocultar-todas', [AlertController::class, 'dismissAll'])->name('alertas.dismiss-all');
 });

@@ -1,6 +1,6 @@
 <script setup>
 import { Link } from '@inertiajs/vue3';
-import UserMenu from '../Components/UserMenu.vue';
+import HeaderActions from '../Components/HeaderActions.vue';
 
 defineProps({
     fincasCount: { type: Number, default: 0 },
@@ -15,9 +15,7 @@ defineProps({
         <header class="border-b border-stone-200 dark:border-stone-800 bg-white dark:bg-stone-900">
             <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
                 <Link href="/dashboard" class="text-xl font-bold text-green-800 dark:text-green-400">MyRancho</Link>
-                <div class="flex items-center gap-4 text-sm text-stone-600 dark:text-stone-400">
-                    <UserMenu />
-                </div>
+                <HeaderActions />
             </div>
         </header>
 
