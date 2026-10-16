@@ -11,6 +11,7 @@ const props = defineProps({
     fathers: { type: Array, required: true },
     propietarios: { type: Array, required: true },
     photos: { type: Array, default: () => [] },
+    purchaseAgeOptions: { type: Array, default: () => [] },
     nextEarTag: { type: String, default: '' },
     nextOffspringEarTag: { type: String, default: '' },
 });
@@ -368,8 +369,11 @@ const page = usePage();
                                     <p v-if="form.errors.seller_name" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.seller_name }}</p>
                                 </div>
                                 <div>
-                                    <label for="age_at_purchase_months" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Edad al momento de compra (meses)</label>
-                                    <input id="age_at_purchase_months" v-model="form.age_at_purchase_months" type="number" min="0" max="1000" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
+                                    <label for="age_at_purchase_months" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Edad al momento de compra</label>
+                                    <select id="age_at_purchase_months" v-model="form.age_at_purchase_months" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
+                                        <option value="">Selecciona una edad</option>
+                                        <option v-for="option in props.purchaseAgeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                                    </select>
                                     <p v-if="form.errors.age_at_purchase_months" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ form.errors.age_at_purchase_months }}</p>
                                 </div>
                                 <div v-if="!animal && form.sex === 'hembra'" class="sm:col-span-2 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 p-4">

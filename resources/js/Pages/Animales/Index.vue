@@ -121,6 +121,7 @@ const editForm = useForm({
     notes: '',
 });
 const editOptions = ref({ fincas: [], propietarios: [], mothers: [], fathers: [] });
+const purchaseAgeOptions = ref([]);
 const fincaForm = useForm({
     name: '',
     location: '',
@@ -242,6 +243,7 @@ async function openCreateModal() {
             mothers: data.mothers,
             fathers: data.fathers,
         };
+        purchaseAgeOptions.value = data.purchaseAgeOptions ?? [];
         nextEarTag.value = data.nextEarTag;
         nextOffspringEarTag.value = data.nextOffspringEarTag;
         loadingAnimal.value = false;
@@ -288,6 +290,7 @@ async function openEditModal(animal) {
             fathers: data.fathers,
         };
         editPhotos.value = data.photos ?? [];
+        purchaseAgeOptions.value = data.purchaseAgeOptions ?? [];
         loadingAnimal.value = false;
         await nextTick();
         document.getElementById('edit-animal-ear-tag')?.focus();
@@ -966,8 +969,11 @@ function removePhoto(photo) {
                                         <p v-if="editForm.errors.seller_name" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ editForm.errors.seller_name }}</p>
                                     </div>
                                     <div>
-                                        <label for="edit-animal-age-purchase" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Edad al momento de compra (meses)</label>
-                                        <input id="edit-animal-age-purchase" v-model="editForm.age_at_purchase_months" type="number" min="0" max="1000" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
+                                        <label for="edit-animal-age-purchase" class="mb-1.5 block text-sm font-medium text-stone-700 dark:text-stone-300">Edad al momento de compra</label>
+                                        <select id="edit-animal-age-purchase" v-model="editForm.age_at_purchase_months" class="w-full rounded-lg border border-stone-300 dark:border-stone-700 bg-white dark:bg-stone-900 px-3 py-2.5 outline-none focus:border-green-700 dark:focus:border-green-500 focus:ring-2 focus:ring-green-100 dark:focus:ring-green-900">
+                                            <option value="">Selecciona una edad</option>
+                                            <option v-for="option in purchaseAgeOptions" :key="option.value" :value="option.value">{{ option.label }}</option>
+                                        </select>
                                         <p v-if="editForm.errors.age_at_purchase_months" class="mt-1 text-sm text-red-600 dark:text-red-400">{{ editForm.errors.age_at_purchase_months }}</p>
                                     </div>
                                     <div v-if="!editingAnimal && editForm.sex === 'hembra'" class="sm:col-span-2 rounded-lg border border-stone-200 dark:border-stone-800 bg-stone-50 dark:bg-stone-950 p-4">

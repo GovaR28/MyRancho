@@ -26,6 +26,22 @@ class Animal extends Model
      */
     public const PHOTO_MAX_REGISTRATION_AGE = 24;
 
+    /**
+     * Edades de compra disponibles (en meses) para el campo "Edad al momento de compra".
+     *
+     * @var list<array{value: int, label: string}>
+     */
+    public const PURCHASE_AGE_OPTIONS = [
+        ['value' => 6, 'label' => '6 meses'],
+        ['value' => 12, 'label' => '1 año'],
+        ['value' => 24, 'label' => '2 años'],
+        ['value' => 36, 'label' => '3 años'],
+        ['value' => 48, 'label' => '4 años'],
+        ['value' => 60, 'label' => '5 años'],
+        ['value' => 72, 'label' => '6 años'],
+        ['value' => 84, 'label' => '7 años'],
+    ];
+
     protected $appends = ['photo_url', 'photo_needs_update', 'photo_due_stage'];
 
     protected $fillable = [
